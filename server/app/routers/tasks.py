@@ -24,7 +24,8 @@ def create_task(
     user: dict = Depends(get_current_user),
     client: Client = Depends(get_user_client),
 ) -> dict:
-    return task_service.create_task(client, user["id"], payload.model_dump())
+    # mode="json" converte date/enums para string (o PostgREST exige JSON serializável).
+    return task_service.create_task(client, user["id"], payload.model_dump(mode="json"))
 
 
 @router.patch("/{task_id}", response_model=TaskOut)
@@ -34,7 +35,7 @@ def update_task(
     user: dict = Depends(get_current_user),
     client: Client = Depends(get_user_client),
 ) -> dict:
-    changes = payload.model_dump(exclude_unset=True)
+    changes = payload.model_dump(exclude_unset=True, mode="json")
     return task_service.update_task(client, user["id"], task_id, changes)
 
 

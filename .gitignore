@@ -12,3 +12,9 @@ __pycache__/
 
 # VS Code
 .vscode/
+
+# Documentação
+docs/
+
+# Arquivos PDF
+*.pdf

@@ -70,7 +70,7 @@ entrar), desative:
 
 ---
 
-## Passo 4 — C1'riar a tabela `tasks` com RLS
+## Passo 4 — Criar a tabela `tasks` com RLS
 
 1. Menu lateral → **SQL Editor → New query**;
 2. Cole o conteúdo do arquivo [`server/schema.sql`](../server/schema.sql);
@@ -149,8 +149,8 @@ mesmo que alguém tente forçar o id de outro usuário na requisição.
 
    ```bash
    python -m venv venv
-   source venv/bin/activate        # Windows: venv\Scripts\activate
-   pip install -r sever/requirements.txt
+   source venv/bin/activate        
+   pip install -r server/requirements.txt
    uvicorn main:app --reload
    ```
 

@@ -1,6 +1,5 @@
 -- ============================================================
 -- TASKFLOW — Schema do Supabase
--- Execute este script no SQL Editor do projeto Supabase.
 -- ============================================================
 
 -- Tabela de tarefas
@@ -46,3 +45,16 @@ drop policy if exists "Usuários podem excluir as próprias tarefas" on public.t
 create policy "Usuários podem excluir as próprias tarefas"
   on public.tasks for delete
   using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- Permissões de acesso (GRANT)
+-- IMPORTANTE: tabelas criadas via SQL Editor NÃO recebem os
+-- grants automáticos que o Table Editor aplica. Sem isso, as
+-- roles anon/authenticated não conseguem nem listar a tabela
+-- (erro: "permission denied for table tasks"), mesmo com RLS.
+-- As policies acima definem QUAIS linhas cada um pode ver;
+-- os grants abaixo definem QUEM pode acessar a tabela.
+-- (São idempotentes: pode rodar o script de novo sem problema.)
+-- ------------------------------------------------------------
+grant select, insert, update, delete on public.tasks to authenticated;
+grant select, insert, update, delete on public.tasks to anon;
