@@ -101,29 +101,334 @@ Os testes usam um banco falso em memória e substituem as dependências do Supab
 
 ## 8. Classificação do sistema distribuído
 
-### Componentes
+## Diagrama de Componentes
 
-O sistema tem três partes principais: o frontend, feito em React; o backend, feito em FastAPI; e o Supabase, que reúne o banco PostgreSQL e o serviço de autenticação. Essas partes funcionam separadamente e trocam informações por meio de requisições HTTP.
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        CAMADA DE APRESENTAÇÃO                      │
+│                        (React + Vite)                               │
+│                                                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
+│  │   Pages      │  │  Components  │  │       Services           │  │
+│  │              │  │    (UI)      │  │                          │  │
+│  │ • Login      │  │ • Button     │  │  ┌────────┐ ┌─────────┐  │  │
+│  │ • Register   │  │ • Input      │  │  │  auth  │ │  tasks  │  │  │
+│  │ • Tasks      │  │ • Select     │  │  │   .js  │ │   .js   │  │  │
+│  │ • NotFound   │  │ • Modal      │  │  └───┬────┘ └────┬────┘  │  │
+│  │              │  │ • Badge      │  │      │           │        │  │
+│  └──────┬───────┘  │ • Toast      │  │  ┌───┴────┐ ┌────┴────┐  │  │
+│         │          │ • EmptyState │  │  │  mock/ │ │ http.js │  │  │
+│  ┌──────┴───────┐  └──────────────┘  │  │ (demo) │ │ (HTTP)  │  │  │
+│  │  Contexts    │                    │  └────────┘ └────┬────┘  │  │
+│  │              │  ┌──────────────┐  │                  │       │  │
+│  │ • AuthCtx    │  │   Hooks      │  └──────────────────┼───────┘  │
+│  │ • ToastCtx   │  │ • useTasks   │                     │          │
+│  └──────┬───────┘  └──────────────┘                     │          │
+│         │                                               │          │
+│  ┌──────┴───────┐  ┌──────────────┐                     │          │
+│  │    Utils     │  │    Config    │                     │          │
+│  │ • constants  │  │ • env.js     │                     │          │
+│  │ • filters    │  └──────────────┘                     │          │
+│  │ • validators │                                       │          │
+│  │ • date.js    │                                       │          │
+│  └──────────────┘                                       │          │
+└─────────────────────────────────────────┬───────────────┘          │
+                                          │                          │
+                                          │  HTTP REST (JSON)        │
+                                          │  JWT Bearer Auth         │
+                                          ▼                          │
+┌─────────────────────────────────────────────────────────────────────┐
+│                        CAMADA DE NEGÓCIO                           │
+│                        (FastAPI + Python)                           │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                      main.py (App)                           │   │
+│  │              CORS + Rotas + Middleware de Erros              │   │
+│  └───────────────────────────┬──────────────────────────────────┘   │
+│                              │                                      │
+│  ┌───────────────────────────┴──────────────────────────────────┐   │
+│  │                    Routers (Endpoints)                       │   │
+│  │                                                              │   │
+│  │  ┌─────────────────┐      ┌──────────────────────────────┐  │   │
+│  │  │   auth.py       │      │       tasks.py               │  │   │
+│  │  │ POST /register  │      │ GET    /tasks                │  │   │
+│  │  │ POST /login     │      │ POST   /tasks                │  │   │
+│  │  │ GET  /me        │      │ PATCH  /tasks/:id            │  │   │
+│  │  └────────┬────────┘      │ DELETE /tasks/:id            │  │   │
+│  │           │               └──────────┬───────────────────┘  │   │
+│  └───────────┼──────────────────────────┼───────────────────────┘   │
+│              │                          │                           │
+│  ┌───────────┴──────────────────────────┴───────────────────────┐   │
+│  │                  Services (Lógica)                           │   │
+│  │                                                              │   │
+│  │  ┌─────────────────┐  ┌──────────────┐  ┌────────────────┐  │   │
+│  │  │ auth_service.py │  │ task_service │  │ supabase_      │  │   │
+│  │  │ (Supabase Auth) │  │     .py      │  │ client.py      │  │   │
+│  │  └─────────────────┘  └──────────────┘  └────────────────┘  │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                  Dependencies (Injeção)                      │   │
+│  │  get_anon_client / get_user_client / get_current_user       │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                  Schemas (Pydantic)                          │   │
+│  │  AuthRequest / AuthResponse / TaskCreate / TaskUpdate /     │   │
+│  │  TaskOut / TaskListOut / Prioridade (Enum) / Status (Enum)  │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────┬───────────────────────────┘
+                                          │
+                                          │  supabase-py (SDK)
+                                          │  PostgREST / Auth API
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     CAMADA DE DADOS (Supabase)                      │
+│                                                                     │
+│  ┌─────────────────────┐       ┌────────────────────────────────┐   │
+│  │  Supabase Auth      │       │  PostgreSQL                    │   │
+│  │                     │       │                                │   │
+│  │ • Cadastro          │       │  ┌──────────────────────────┐  │   │
+│  │ • Login             │       │  │  Table: tasks             │  │   │
+│  │ • JWT Validation    │       │  │  • id (uuid, PK)         │  │   │
+│  │ • Session Mgmt      │       │  │  • user_id (uuid, FK)    │  │   │
+│  │                     │       │  │  • titulo (varchar)      │  │   │
+│  └─────────────────────┘       │  │  • descricao (text)      │  │   │
+│                                │  │  • data_limite (date)    │  │   │
+│                                │  │  • prioridade (enum)     │  │   │
+│                                │  │  • status (enum)         │  │   │
+│                                │  │  • criada_em (timestamptz)│  │   │
+│                                │  └──────────────────────────┘  │   │
+│                                │                                │   │
+│                                │  RLS Policies:                 │   │
+│                                │  auth.uid() = user_id          │   │
+│                                └────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-### Compartilhamento
+---
 
-O banco de dados é compartilhado pelos usuários, mas cada usuário acessa somente as próprias tarefas. Esse controle é feito pelo RLS do Supabase e também pelo filtro aplicado no backend. A API também é compartilhada, pois atende todos os clientes da aplicação.
+## Tipos Compartilhados (Shared Domain Types)
 
+Os tipos de domínio são definidos em **ambas as camadas** e devem permanecer sincronizados:
+
+| Conceito       | Frontend (`constants.js`)         | Backend (`schemas.py`)               | Valores Válidos                          |
+| -------------- | --------------------------------- | ------------------------------------ | ---------------------------------------- |
+| **Prioridade** | `PRIORIDADES` array               | `Prioridade(str, Enum)`              | `baixa`, `media`, `alta`                 |
+| **Status**     | `STATUS` array                    | `Status(str, Enum)`                  | `pendente`, `em_andamento`, `concluida`  |
+| **Tarefa**     | Objeto JS (useTasks / mock)       | `TaskOut(BaseModel)`                 | `{ id, user_id, titulo, descricao, data_limite, prioridade, status, criada_em }` |
+| **Requisição Auth** | —                            | `AuthRequest(BaseModel)`            | `{ email: EmailStr, password: str }`     |
+| **Resposta Auth**   | —                            | `AuthResponse(BaseModel)`           | `{ access_token: str, user: UserOut }`   |
+
+### Contrato de Comunicação (API)
+
+Todas as requisições usam **JSON** e autenticação **Bearer JWT**:
+
+```
+┌──────────────┐                          ┌──────────────┐
+│   Frontend   │   Authorization: Bearer  │   Backend    │
+│   (React)    │ ───────────────────────► │   (FastAPI)  │
+│              │   Content-Type: JSON     │              │
+│              │ ◄─────────────────────── │              │
+└──────────────┘   { data ou error }      └──────────────┘
+```
+
+**Formato da Tarefa no JSON:**
+
+```json
+{
+  "id": "uuid",
+  "user_id": "uuid",
+  "titulo": "string",
+  "descricao": "string",
+  "data_limite": "2025-12-31",
+  "prioridade": "baixa | media | alta",
+  "status": "pendente | em_andamento | concluida",
+  "criada_em": "2025-01-15T10:30:00Z"
+}
+```
+
+---
 ### Tipo de sistema distribuído
 
 O TaskFlow pode ser classificado principalmente como um sistema distribuído de informação. Sua função principal é armazenar, consultar e atualizar dados. Ele não depende de processamento distribuído pesado nem de sensores ou dispositivos físicos.
 
-### Transparência
+## Transparência
 
-O usuário não precisa saber que o frontend passa pelo backend antes de acessar o Supabase. Também não precisa conhecer a localização física do banco ou acompanhar a validação do token JWT. Esses detalhes ficam escondidos pela própria arquitetura do sistema.
+### Observabilidade e Logging
 
-### Escalabilidade
+| Camada        | Mecanismo                                                                 |
+| ------------- | ------------------------------------------------------------------------- |
+| **Frontend**  | `ToastContext` exibe feedback visual (sucesso/erro) ao usuário           |
+| **Backend**   | FastAPI gera logs automáticos de todas as requisições (status, duração)   |
+| **Banco**     | Supabase oferece dashboard com logs de acesso e queries executadas        |
+| **Erros API** | Padronizados como `{ detail: "mensagem" }` — frontend exibe via Toast     |
 
-Uma possibilidade de crescimento seria executar várias instâncias do backend atrás de um load balancer. Como a sessão é mantida pelo token e não na memória do servidor, o backend pode funcionar de forma stateless. O banco e a autenticação ficam sob responsabilidade do Supabase, que oferece os recursos de escalabilidade do serviço.
+### Fluxo de Dados Transparente
 
-### Falhas
+```
+Usuário interage na UI
+    │
+    ▼
+useTasks hook (estado + operações)
+    │
+    ▼
+Services layer (auth.js / tasks.js)
+    │
+    ▼
+http.js (monta request, adiciona token, trata erros)
+    │
+    ▼
+FastAPI Routers (validação Pydantic + autenticação)
+    │
+    ▼
+Services (auth_service / task_service)
+    │
+    ▼
+Supabase Client (SDK) → PostgreSQL (RLS garante isolamento)
+    │
+    ▼
+Resposta percorre a mesma rota de volta
+    │
+    ▼
+Toast feedback ao usuário
+```
 
-Se o backend ficar indisponível, o frontend não conseguirá acessar a API no modo de produção. Ainda assim, o modo mock pode continuar funcionando com os dados salvos no `localStorage`. Se o Supabase parar, o login e o acesso às tarefas também ficarão indisponíveis. Atualmente, essa é uma dependência central do sistema e não existe uma redundância própria para esse serviço.
+### Acesso do Usuário aos Dados
+
+O **RLS (Row Level Security)** no banco garante transparência no isolamento:
+- Cada usuário só enxerga suas próprias tarefas (`auth.uid() = user_id`)
+- Não é possível acessar tarefas de outros usuários, mesmo com requisição manual
+- O token JWT é validado no Supabase antes de qualquer operação
+
+---
+
+## Escalabilidade
+
+### Estratégias de Escalabilidade
+
+```
+                    ┌──────────────────────────────────────┐
+                    │           CAMADAS ESCALÁVEIS          │
+                    └──────────────────────────────────────┘
+
+  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+  │    FRONTEND     │   │     BACKEND     │   │     BANCO       │
+  │                 │   │                 │   │                 │
+  │ • CDN (static)  │   │ • Horizontal    │   │ • PostgreSQL    │
+  │ • Code splitting│   │   (múltiplos    │   │   gerenciado    │
+  │ • Lazy loading  │   │   workers)      │   │ • RLS para      │
+  │ • Componentes   │   │ • Stateless     │   │   multi-tenant   │
+  │   reutilizáveis │   │   (sem sessão   │   │ • Índices       │
+  │ • Cache local   │   │   no servidor)  │   │                 │
+  │   (localStorage)│   │ • Cache HTTP    │   │                 │
+  └─────────────────┘   └─────────────────┘   └─────────────────┘
+```
+
+| Nível              | Como o TaskFlow suporta                                                   |
+| ------------------ | ------------------------------------------------------------------------- |
+| **Frontend**       | Componentes reutilizáveis (`ui/`), services abstraídos, mock toggleável  |
+| **Backend**        | FastAPI é async/await, API stateless (JWT), separação routers/services   |
+| **Banco**          | Supabase escala automaticamente, RLS elimina necessidade de lógica extra |
+| **Novas features** | Adicionar nova rota = novo arquivo em `routers/` + schema em `schemas.py`|
+| **Multi-tenant**   | RLS por `user_id` — naturalmente suporta múltiplos usuários             |
+
+---
+
+## Cenários de Falha (Fault Tolerance)
+
+### Matriz de Falhas
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    O QUE ACONTECE SE...                             │
+├────────────────────────┬────────────────────────────────────────────┤
+│  COMPONENTE FALHA      │  COMPORTAMENTO DO SISTEMA                 │
+├────────────────────────┼────────────────────────────────────────────┤
+│                        │                                            │
+│  Supabase (Banco)      │  Backend retorna 500/503                   │
+│  fica indisponível     │  Frontend exibe Toast de erro              │
+│                        │  Usuário vê mensagem amigável              │
+│                        │  Dados não são corrompidos (transação)     │
+│                        │                                            │
+├────────────────────────┼────────────────────────────────────────────┤
+│                        │                                            │
+│  Backend (FastAPI)     │  Frontend recebe erro de rede              │
+│  cai ou reinicia       │  http.js trata erro e exibe Toast          │
+│                        │  Usuário pode tentar novamente             │
+│                        │  Não há perda de dados (stateless)         │
+│                        │                                            │
+├────────────────────────┼────────────────────────────────────────────┤
+│                        │                                            │
+│  Frontend (React)      │  Página para de responder                  │
+│  quebra (JS error)     │  React Error Boundary captura erro         │
+│                        │  Usuário pode recarregar página            │
+│                        │  Dados no Supabase permanecem intactos     │
+│                        │                                            │
+├────────────────────────┼────────────────────────────────────────────┤
+│                        │                                            │
+│  Autenticação          │  Token expirado → backend retorna 401      │
+│  falha (token inválido)│  Frontend redireciona para /login          │
+│                        │  Usuário faz login novamente               │
+│                        │                                            │
+├────────────────────────┼────────────────────────────────────────────┤
+│                        │                                            │
+│  Modo mock (frontend)  │  Dados ficam no localStorage               │
+│  sem backend           │  Interface funciona 100% offline           │
+│                        │  Perda de dados ao limpar cache            │
+│                        │                                            │
+├────────────────────────┼────────────────────────────────────────────┤
+│                        │                                            │
+│  Request HTTP          │  http.js adiciona timeout                  │
+│  demora muito          │  Toast informa "timeout" ao usuário        │
+│                        │  Usuário pode retry manualmente            │
+│                        │                                            │
+├────────────────────────┼────────────────────────────────────────────┤
+│                        │                                            │
+│  Banco retorna dados   │  FastAPI valida com Pydantic               │
+│  inconsistentes        │  Resposta 500 com mensagem de erro         │
+│                        │  Frontend exibe Toast                      │
+│                        │                                            │
+└────────────────────────┴────────────────────────────────────────────┘
+```
+
+### Fluxo de Tratamento de Erros
+
+```
+Erro acontece em qualquer camada
+         │
+         ▼
+┌─────────────────────┐
+│  Camada detecta erro │
+│  (try/catch ou HTTP) │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐     ┌──────────────────────┐
+│  Erro é propagado    │────►│  ToastContext exibe   │
+│  via HTTP response   │     │  mensagem ao usuário  │
+│  { detail: "..." }  │     └──────────────────────┘
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Sistema continua    │
+│  funcional           │
+│  (nenhum dado é      │
+│   perdido)           │
+└─────────────────────┘
+```
+
+### Princípios de Tolerância a Falhas
+
+1. **Isolamento**: Falha em uma camada não afeta dados em outras camadas
+2. **Feedback**: O usuário sempre recebe uma mensagem clara sobre o que aconteceu
+3. **Retry**: Operações podem ser repetidas sem risco de duplicação
+4. **Fallback**: Modo mock permite uso offline quando o backend está indisponível
+5. **Validação**: Pydantic no backend e validators no frontend garantem integridade
+
+---
+
 
 ## 9. Como executar
 
@@ -146,9 +451,3 @@ npm run dev
 ```
 
 Com o modo mock ativado, o frontend pode ser executado sem configurar o backend. Para usar o Supabase, é necessário criar o banco a partir do arquivo `schema.sql` e preencher as variáveis de ambiente indicadas na documentação.
-
-## 10. Considerações finais
-
-O projeto atende às funções básicas de um gerenciador de tarefas e separa a interface, a API e o banco de dados em partes independentes. A criação do modo mock facilitou os testes da interface, enquanto os testes do backend ajudaram a verificar as regras de autenticação e de acesso aos dados.
-
-Como melhorias futuras, seria possível adicionar recuperação de senha, paginação, categorias e testes de interface. Também seria importante configurar o deploy e revisar as medidas de segurança antes de disponibilizar o sistema em produção.
